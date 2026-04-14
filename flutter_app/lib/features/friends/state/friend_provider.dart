@@ -23,7 +23,9 @@ class Friend {
       friendUid: json['friendUid'] ?? '',
       friendName: json['friendName'] ?? '',
       friendAvatar: json['friendAvatar'] ?? '',
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 }
@@ -46,7 +48,7 @@ class FriendProvider extends ChangeNotifier {
     try {
       // 模拟API调用延迟
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // 添加测试数据
       _friends = [
         Friend(
