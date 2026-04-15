@@ -59,7 +59,6 @@ class AlbumProvider extends ChangeNotifier {
   Future<void> getMyShots() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       // 模拟API调用延迟

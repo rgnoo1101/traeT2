@@ -77,7 +77,6 @@ class ChatProvider extends ChangeNotifier {
   Future<void> getChats() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       // 模拟API调用延迟
@@ -122,7 +121,6 @@ class ChatProvider extends ChangeNotifier {
   Future<void> getMessages(String chatId, String currentUserId) async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       // 模拟API调用延迟
@@ -189,7 +187,6 @@ class ChatProvider extends ChangeNotifier {
   ) async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       final requestId = 'req_${const Uuid().v4()}';

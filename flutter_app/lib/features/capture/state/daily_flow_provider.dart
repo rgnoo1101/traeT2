@@ -35,7 +35,6 @@ class DailyFlowProvider extends ChangeNotifier {
     _countdown = 120; // 2分钟
     _isCountingDown = true;
     _status = DailyStatus.capturing;
-    notifyListeners();
 
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -49,6 +48,7 @@ class DailyFlowProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+    notifyListeners();
   }
 
   // 开始互看倒计时（2分钟）
@@ -56,7 +56,6 @@ class DailyFlowProvider extends ChangeNotifier {
     _countdown = 120; // 2分钟
     _isCountingDown = true;
     _status = DailyStatus.viewing;
-    notifyListeners();
 
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -70,6 +69,7 @@ class DailyFlowProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+    notifyListeners();
   }
 
   // 停止倒计时

@@ -25,7 +25,8 @@ class _MainPageState extends State<MainPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PhotoMatch'),
+        title: const Text(''),
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
