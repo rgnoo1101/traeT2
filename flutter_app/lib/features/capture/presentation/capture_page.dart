@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_app/features/capture/state/daily_flow_provider.dart';
-import 'package:flutter_app/shared/services/api_service.dart';
-import 'package:flutter_app/shared/services/storage_service.dart';
-import 'package:uuid/uuid.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({super.key});
@@ -34,35 +31,24 @@ class _CapturePageState extends State<CapturePage> {
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) return;
       
-      final firstCamera = _cameras![0];
       _controller = CameraController(
-        firstCamera,
-        ResolutionPreset.high,
+        _cameras![_currentCameraIndex],
+        ResolutionPreset.medium, 
+        enableAudio: false,
       );
 
       _initializeControllerFuture = _controller!.initialize();
-      setState(() {});
+      if (mounted) setState(() {});
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Camera Init Error: $e');
     }
   }
 
   Future<void> _toggleCamera() async {
     if (_cameras == null || _cameras!.length < 2) return;
-
     _currentCameraIndex = (_currentCameraIndex + 1) % _cameras!.length;
-
-    try {
-      await _controller?.dispose();
-      _controller = CameraController(
-        _cameras![_currentCameraIndex],
-        ResolutionPreset.high,
-      );
-      _initializeControllerFuture = _controller!.initialize();
-      setState(() {});
-    } catch (e) {
-      print('Error toggling camera: $e');
-    }
+    await _controller?.dispose();
+    _initCamera();
   }
 
   @override
@@ -73,44 +59,30 @@ class _CapturePageState extends State<CapturePage> {
 
   Future<void> _takePhoto() async {
     try {
-      if (_controller == null || _initializeControllerFuture == null) return;
-      await _initializeControllerFuture;
+      if (_controller == null || !_controller!.value.isInitialized) return;
       final image = await _controller!.takePicture();
-      setState(() {
-        _image = image;
-      });
+      if (mounted) setState(() => _image = image);
     } catch (e) {
-      print('Error taking photo: $e');
+      debugPrint('Take Photo Error: $e');
     }
   }
 
   Future<void> _uploadPhoto() async {
     if (_image == null) return;
-
-    setState(() {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-    });
-
+    setState(() { _isUploading = true; _uploadProgress = 0.0; });
+    
     try {
       final dailyFlowProvider = DailyFlowProvider.of(context);
       for (int i = 0; i <= 100; i++) {
-        await Future.delayed(const Duration(milliseconds: 20));
-        setState(() {
-          _uploadProgress = i / 100;
-        });
+        await Future.delayed(const Duration(milliseconds: 15));
+        if (mounted) setState(() => _uploadProgress = i / 100);
       }
-      await Future.delayed(const Duration(seconds: 1));
       dailyFlowProvider.markAsUploaded();
       dailyFlowProvider.markAsMatching();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('上傳失敗：$e')),
-      );
+      debugPrint('Upload Error: $e');
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -118,163 +90,203 @@ class _CapturePageState extends State<CapturePage> {
   Widget build(BuildContext context) {
     final dailyFlowProvider = Provider.of<DailyFlowProvider>(context);
 
-    return Column(
-      children: [
-        // 頂部標題和圖標
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Icon(Icons.settings, size: 24),
-              const Text(
-                'ANALOG',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const Icon(Icons.notifications, size: 24),
-            ],
-          ),
-        ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: Column(
+        children: [
+          const SizedBox(height: 40), // 保持顶部间距
 
-        // 拍立得風格的拍攝區域 (比例修正重點)
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Center(
-              child: AspectRatio(
-                aspectRatio: 2 / 3, // 外層白色相框比例
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        spreadRadius: 5,
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double frameWidth = constraints.maxWidth * 0.82;
+                final double frameHeight = frameWidth * 1.5; 
+                final double photoWidth = frameWidth - 32;
+                final double photoHeight = photoWidth * (4 / 3);
+                
+                return Center(
+                  child: _buildPolaroidFrame(
+                    width: frameWidth,
+                    height: frameHeight,
+                    photoWidth: photoWidth,
+                    photoHeight: photoHeight,
                   ),
-                  // 上、左、右留白，下方留空較多用於呈現拍立得質感
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 60),
-                  child: Container(
-                    color: Colors.black, // 背景黑色，防止加載閃白
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: 3 / 4, // 內層實時畫面比例 (4:3 直式)
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: _image == null
-                              ? _initializeControllerFuture == null
-                                  ? const Center(child: CircularProgressIndicator())
-                                  : FutureBuilder<void>(
-                                      future: _initializeControllerFuture,
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.done) {
-                                          return CameraPreview(_controller!);
-                                        } else {
-                                          return const Center(child: CircularProgressIndicator());
-                                        }
-                                      },
-                                    )
-                              : Image.file(
-                                  File(_image!.path),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
+                );
+              },
+            ),
+          ),
+
+          if (_isUploading) _buildProgressBar(),
+
+          _buildControlPanel(dailyFlowProvider),
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildPolaroidFrame({
+    required double width,
+    required double height,
+    required double photoWidth,
+    required double photoHeight,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 16), 
+          SizedBox(
+            width: photoWidth,
+            height: photoHeight,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(1),
+              child: Container(
+                color: Colors.black,
+                child: _image == null ? _buildCameraPreview() : _buildTakenImage(),
+              ),
+            ),
+          ),
+          const Spacer(),
+          if (_image != null)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 20),
+              child: Text(
+                'MEMORIES // 2026',
+                style: TextStyle(
+                  fontFamily: 'Courier',
+                  color: Colors.black12,
+                  fontWeight: FontWeight.bold
                 ),
               ),
+            )
+          else
+            const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    if (_initializeControllerFuture == null) return const SizedBox();
+    return FutureBuilder<void>(
+      future: _initializeControllerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _controller!.value.previewSize?.height ?? 1080,
+              height: _controller!.value.previewSize?.width ?? 1440,
+              child: CameraPreview(_controller!),
+            ),
+          );
+        }
+        return const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2));
+      },
+    );
+  }
+
+  Widget _buildTakenImage() {
+    return Image.file(
+      File(_image!.path),
+      fit: BoxFit.cover,
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 10),
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: _uploadProgress,
+              minHeight: 6,
+              backgroundColor: Colors.black12,
+              color: Colors.black87,
             ),
           ),
-        ),
-
-        // 上傳進度條
-        if (_isUploading)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              children: [
-                LinearProgressIndicator(value: _uploadProgress),
-                const SizedBox(height: 8),
-                Text('上傳中：${(_uploadProgress * 100).toStringAsFixed(0)}%'),
-              ],
-            ),
+          const SizedBox(height: 5),
+          Text(
+            'UPLOADING ${(_uploadProgress * 100).toInt()}%',
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black45),
           ),
+        ],
+      ),
+    );
+  }
 
-        // 拍攝按鈕和操作按鈕
-        SizedBox(
-          height: 150,
-          child: Stack(
+  Widget _buildControlPanel(DailyFlowProvider provider) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 1. 中央主要按鈕
+          Align(
             alignment: Alignment.center,
-            children: [
-              // 1. 快門/上傳按鈕 (居中)
-              Center(
-                child: GestureDetector(
-                  onTap: _isUploading
-                      ? null
-                      : _image != null
-                          ? _uploadPhoto
-                          : _takePhoto,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey, width: 3),
-                    ),
-                    child: Center(
-                      child: _image != null
-                          ? const Icon(Icons.cloud_upload, size: 32)
-                          : Text(
-                              '${dailyFlowProvider.countdown % 60}',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                    ),
-                  ),
+            child: GestureDetector(
+              onTap: _isUploading ? null : (_image != null ? _uploadPhoto : _takePhoto),
+              child: Container(
+                width: 82,
+                height: 82,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                  border: Border.all(color: Colors.black12, width: 4),
+                ),
+                child: Center(
+                  child: _image != null
+                      ? const Icon(Icons.check_rounded, size: 40, color: Colors.green)
+                      : Text(
+                          '${provider.countdown % 60}',
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black87),
+                        ),
                 ),
               ),
-
-              // 2. 切換/重拍按鈕 (靠右)
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 40.0),
-                  child: GestureDetector(
-                    onTap: _isUploading
-                        ? null
-                        : _image != null
-                            ? () => setState(() => _image = null)
-                            : _toggleCamera,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.9),
-                        border: Border.all(color: Colors.grey, width: 2),
-                      ),
-                      child: Center(
-                        child: _image != null
-                            ? const Icon(Icons.refresh, size: 24)
-                            : const Icon(Icons.cameraswitch, size: 24),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+
+          // 2. 右側按鈕 - 使用更安全的定位方式，防止重疊
+          Positioned(
+            right: 10, // 縮小邊距
+            child: GestureDetector(
+              onTap: _isUploading ? null : (_image != null ? () => setState(() => _image = null) : _toggleCamera),
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                ),
+                child: Icon(
+                  _image != null ? Icons.refresh_rounded : Icons.cameraswitch_rounded,
+                  color: Colors.black54,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
