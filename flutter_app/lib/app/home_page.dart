@@ -6,6 +6,7 @@ import 'package:flutter_app/features/capture/presentation/capture_page.dart';
 import 'package:flutter_app/features/match/presentation/match_waiting_page.dart';
 import 'package:flutter_app/features/match/presentation/viewing_page.dart';
 import 'package:flutter_app/features/friends/presentation/friends_list_page.dart';
+import 'package:flutter_app/features/friends/presentation/feed_page.dart';
 import 'package:flutter_app/features/chat/presentation/chat_list_page.dart';
 import 'package:flutter_app/features/album/presentation/album_page.dart';
 
@@ -46,6 +47,7 @@ class _MainPageState extends State<MainPage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home, color: Colors.grey), label: '首页'),
+          BottomNavigationBarItem(icon: Icon(Icons.feed, color: Colors.grey), label: '动态'),
           BottomNavigationBarItem(icon: Icon(Icons.people, color: Colors.grey), label: '好友'),
           BottomNavigationBarItem(icon: Icon(Icons.chat, color: Colors.grey), label: '聊天'),
           BottomNavigationBarItem(icon: Icon(Icons.photo_album, color: Colors.grey), label: '相簿'),
@@ -59,10 +61,12 @@ class _MainPageState extends State<MainPage> {
       case 0:
         return const HomeContent();
       case 1:
-        return const FriendsListPage();
+        return const FeedPage();
       case 2:
-        return const ChatListPage();
+        return const FriendsListPage();
       case 3:
+        return const ChatListPage();
+      case 4:
         return const AlbumPage();
       default:
         return const HomeContent();

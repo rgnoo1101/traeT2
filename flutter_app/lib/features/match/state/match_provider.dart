@@ -26,7 +26,6 @@ class MatchProvider extends ChangeNotifier {
   Future<void> getCurrentSession() async {
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       final response = await ApiService().getCurrentSession();
@@ -52,7 +51,6 @@ class MatchProvider extends ChangeNotifier {
 
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       final requestId = 'req_${const Uuid().v4()}';

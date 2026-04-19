@@ -82,7 +82,36 @@ class FriendProvider extends ChangeNotifier {
   Future<List<dynamic>> getFriendUpdates() async {
     // 实际应该调用API获取好友的最新照片
     await Future.delayed(Duration(seconds: 1));
-    return [];
+    // 添加测试数据
+    return [
+      {
+        'id': '1',
+        'friendId': 'user1',
+        'friendName': '张三',
+        'friendAvatar': '',
+        'photoUrl': 'https://picsum.photos/seed/friend1/400/600',
+        'caption': 'The distance of the planet at 5:30 AM. A reminder that some things are permanent.',
+        'timestamp': DateTime.now().subtract(Duration(hours: 2)).toIso8601String(),
+      },
+      {
+        'id': '2',
+        'friendId': 'user2',
+        'friendName': '李四',
+        'friendAvatar': '',
+        'photoUrl': 'https://picsum.photos/seed/friend2/400/600',
+        'caption': 'To truly only with nature can one archived for more than a second.',
+        'timestamp': DateTime.now().subtract(Duration(hours: 5)).toIso8601String(),
+      },
+      {
+        'id': '3',
+        'friendId': 'user3',
+        'friendName': '王五',
+        'friendAvatar': '',
+        'photoUrl': 'https://picsum.photos/seed/friend3/400/600',
+        'caption': 'Coastal Archives: documenting the transient coastal light as it swept today.',
+        'timestamp': DateTime.now().subtract(Duration(hours: 8)).toIso8601String(),
+      },
+    ];
   }
 
   static FriendProvider of(BuildContext context) {
